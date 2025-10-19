@@ -170,3 +170,13 @@ MIT License - See LICENSE file for details.
 ## Contributing
 
 Contributions welcome! Please feel free to submit a Pull Request.
+
+## TODO
+
+- [ ] **Better project name** - "rats" needs a more professional/memorable name
+- [ ] **Package manager support** - Add proper Lazy.nvim/Packer/vim-plug installation
+- [ ] **Plugin structure** - Create `lua/` directory with proper Neovim plugin architecture
+- [ ] **Automatic binary management** - Handle Rust compilation through package managers
+- [ ] **Documentation improvements** - Add GIFs/screenshots of the fuzzy finder in action
+- [ ] **Configuration options** - Allow users to customize keybindings and behavior
+- [ ] **Cross-platform testing** - Ensure works on Windows/Linux/macOS
