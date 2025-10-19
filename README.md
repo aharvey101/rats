@@ -7,6 +7,7 @@ A lightning-fast fuzzy file browser built with Rust and Ratatui, featuring seaml
 - ⚡ **Native Performance** - Built with Rust for maximum speed
 - 🔍 **Smart Fuzzy Matching** - Intelligent scoring with consecutive character bonuses
 - 📁 **Directory Navigation** - Expand folders and browse your entire project
+- 🎯 **Vim-like Navigation** - hjkl movement, normal/insert modes, gg/G jumps
 - 🖥️ **Dual Mode Operation** - Interactive TUI or JSON output for integrations
 - 🔌 **Neovim Integration** - Drop-in replacement with floating window UI
 - 🛡️ **UTF-8 Safe** - Handles international filenames gracefully
@@ -44,11 +45,21 @@ rats --query "main"
 ```
 
 **Controls:**
-- Type to filter files
-- `↑/↓` or `j/k` - Navigate
-- `Enter` - Open file/folder
-- `Backspace` - Remove filter character
-- `Ctrl+C` or `q` - Quit
+- **Normal Mode (default):**
+  - `j/k` or `↓/↑` - Navigate files
+  - `h` - Go back to parent directory
+  - `l` or `Enter` - Open file/enter directory
+  - `gg` - Jump to first file
+  - `G` - Jump to last file
+  - `Ctrl+u` - Page up (half screen)
+  - `Ctrl+d` - Page down (half screen)
+  - `i`, `a`, `A` - Enter insert mode for typing
+  - `q`, `Esc`, `Ctrl+C` - Quit
+- **Insert Mode (for searching):**
+  - Type to filter files in real-time
+  - `Esc` - Return to normal mode
+  - `Enter` - Open selected file/directory
+  - `Ctrl+C` - Quit
 
 ### JSON Mode (For Integrations)
 
@@ -82,11 +93,13 @@ rats --json --query "cargo"
 
 ### Usage in Neovim
 
-1. Press `<leader>ff` to open the fuzzy finder
-2. Type to search files in real-time
-3. Use `↑/↓` or `Ctrl+j/k` to navigate
-4. Press `Enter` to open the selected file
-5. Press `Escape` to close
+1. **Press `<leader>ff`** to open the fuzzy finder (starts in normal mode)
+2. **Navigate with vim keys:** `j/k` to move, `h` to go back, `l/Enter` to open
+3. **Press `i`** to enter insert mode and type search query
+4. **Press `Esc`** to return to normal mode for navigation
+5. **Use `gg`/`G`** for quick jumps to top/bottom
+6. **Use `Ctrl+u`/`Ctrl+d`** for page navigation
+7. **Press `Enter`** to open the selected file
 
 ## Technical Details
 
