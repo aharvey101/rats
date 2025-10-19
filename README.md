@@ -14,7 +14,23 @@ A lightning-fast fuzzy file browser built with Rust and Ratatui, featuring seaml
 
 ## Installation
 
-### Build from Source
+### 🚀 Quick Install (Neovim Plugin)
+
+**One-command installation:**
+```bash
+curl -sSL https://raw.githubusercontent.com/aharvey101/rats/master/install.sh | bash
+```
+
+**Manual installation:**
+1. Download the plugin file:
+   ```bash
+   curl -sSL https://raw.githubusercontent.com/aharvey101/rats/master/rats-single-file-install.lua \
+        -o ~/.config/nvim/lua/plugins/rats-fuzzy-finder.lua
+   ```
+2. Restart Neovim or run `:Lazy sync`
+3. The plugin will automatically compile and install rats
+
+### 🔧 Build from Source
 
 ```bash
 git clone <your-repo>
