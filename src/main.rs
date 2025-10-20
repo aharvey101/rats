@@ -103,6 +103,8 @@ struct App {
     filter: String,
     filtered_items: Vec<(usize, i32)>, // (index, score)
     config: Config,
+    preview_content: Option<String>,
+    preview_scroll: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -183,8 +185,11 @@ impl App {
             filter: config.query.clone(),
             filtered_items: Vec::new(),
             config,
+            preview_content: None,
+            preview_scroll: 0,
         };
         app.load_directory()?;
+        app.load_preview(); // Load preview for initial selection
         Ok(app)
     }
 
@@ -253,6 +258,9 @@ impl App {
         } else {
             self.list_state.select(None);
         }
+        
+        // Load preview for newly selected item
+        self.load_preview();
     }
 
     fn next(&mut self) {
@@ -271,6 +279,7 @@ impl App {
             None => 0,
         };
         self.list_state.select(Some(i));
+        self.load_preview();
     }
 
     fn previous(&mut self) {
@@ -289,6 +298,7 @@ impl App {
             None => 0,
         };
         self.list_state.select(Some(i));
+        self.load_preview();
     }
 
     fn enter_selected(&mut self) -> Result<Option<PathBuf>, Box<dyn Error>> {
@@ -351,6 +361,72 @@ impl App {
         self.filter.clear();
         self.update_filter();
     }
+
+    fn load_preview(&mut self) {
+        if let Some(selected) = self.list_state.selected() {
+            if let Some(&(item_index, _)) = self.filtered_items.get(selected) {
+                if let Some(path) = self.items.get(item_index) {
+                    if !path.is_dir() && path.file_name().map_or(false, |name| name != "..") {
+                        self.preview_content = self.read_file_content(path);
+                        self.preview_scroll = 0;
+                    } else {
+                        self.preview_content = None;
+                        self.preview_scroll = 0;
+                    }
+                } else {
+                    self.preview_content = None;
+                    self.preview_scroll = 0;
+                }
+            } else {
+                self.preview_content = None;
+                self.preview_scroll = 0;
+            }
+        } else {
+            self.preview_content = None;
+            self.preview_scroll = 0;
+        }
+    }
+
+    fn read_file_content(&self, path: &PathBuf) -> Option<String> {
+        // Check if file is likely binary by extension
+        if let Some(extension) = path.extension() {
+            let ext = extension.to_string_lossy().to_lowercase();
+            let binary_extensions = [
+                "exe", "bin", "dll", "so", "dylib", "a", "o", "obj",
+                "jpg", "jpeg", "png", "gif", "bmp", "ico", "tiff", "webp",
+                "mp3", "mp4", "wav", "flac", "ogg", "avi", "mkv", "mov",
+                "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+                "zip", "tar", "gz", "bz2", "7z", "rar",
+            ];
+            if binary_extensions.contains(&ext.as_str()) {
+                return Some(format!("Binary file: {}", path.file_name()?.to_string_lossy()));
+            }
+        }
+
+        match fs::read_to_string(path) {
+            Ok(content) => {
+                // Limit content size for performance
+                if content.len() > 100_000 {
+                    Some(format!("File too large to preview ({}+ characters)\n\nShowing first 10,000 characters:\n\n{}", 
+                        content.len(), 
+                        &content[..10_000]))
+                } else {
+                    Some(content)
+                }
+            }
+            Err(_) => Some(format!("Unable to read file: {}", path.display())),
+        }
+    }
+
+    fn scroll_preview_up(&mut self) {
+        if self.preview_scroll > 0 {
+            self.preview_scroll -= 1;
+        }
+    }
+
+    fn scroll_preview_down(&mut self) {
+        self.preview_scroll += 1;
+    }
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -411,6 +487,8 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<
                     KeyCode::Char('q') => return Ok(None),
                     KeyCode::Down | KeyCode::Char('j') => app.next(),
                     KeyCode::Up | KeyCode::Char('k') => app.previous(),
+                    KeyCode::Left | KeyCode::Char('h') => app.scroll_preview_up(),
+                    KeyCode::Right | KeyCode::Char('l') => app.scroll_preview_down(),
                     KeyCode::Enter => {
                         match app.enter_selected() {
                             Ok(Some(path)) => return Ok(Some(path)),
@@ -445,7 +523,16 @@ fn ui(f: &mut Frame, app: &mut App) {
         .style(Style::default().fg(Color::Cyan));
     f.render_widget(header, chunks[0]);
 
-    // File list
+    // Split main area horizontally: file list on left, preview on right
+    let main_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
+        ])
+        .split(chunks[1]);
+
+    // File list (left side)
     let items: Vec<ListItem> = app
         .filtered_items
         .iter()
@@ -470,13 +557,46 @@ fn ui(f: &mut Frame, app: &mut App) {
         .highlight_style(Style::default().bg(Color::LightBlue).fg(Color::Black))
         .highlight_symbol(">> ");
     
-    f.render_stateful_widget(items_list, chunks[1], &mut app.list_state);
+    f.render_stateful_widget(items_list, main_chunks[0], &mut app.list_state);
+
+    // File preview (right side)
+    let preview_content = if let Some(ref content) = app.preview_content {
+        let lines: Vec<&str> = content.lines().collect();
+        let start_line = app.preview_scroll;
+        let visible_height = main_chunks[1].height.saturating_sub(2) as usize; // Account for borders
+        
+        let visible_lines = if start_line < lines.len() {
+            let end_line = std::cmp::min(start_line + visible_height, lines.len());
+            lines[start_line..end_line].join("\n")
+        } else {
+            String::new()
+        };
+        
+        // Show scroll indicators
+        let scroll_info = if lines.len() > visible_height {
+            format!(" [{}..{}/{}]", start_line + 1, 
+                   std::cmp::min(start_line + visible_height, lines.len()), 
+                   lines.len())
+        } else {
+            String::new()
+        };
+        
+        (visible_lines, format!("Preview{}", scroll_info))
+    } else {
+        ("Select a file to preview".to_string(), "Preview".to_string())
+    };
+
+    let preview_widget = Paragraph::new(preview_content.0)
+        .block(Block::default().title(preview_content.1).borders(Borders::ALL))
+        .style(Style::default().fg(Color::White));
+    
+    f.render_widget(preview_widget, main_chunks[1]);
 
     // Footer with filter and help
     let footer_text = if app.filter.is_empty() {
-        "Filter: <empty> | j/k or ↓/↑: navigate | Enter: open | q: quit | Esc: clear filter".to_string()
+        "Filter: <empty> | j/k: navigate | h/l: scroll preview | Enter: open | q: quit | Esc: clear filter".to_string()
     } else {
-        format!("Filter: {} | j/k or ↓/↑: navigate | Enter: open | q: quit | Esc: clear filter", app.filter)
+        format!("Filter: {} | j/k: navigate | h/l: scroll preview | Enter: open | q: quit | Esc: clear filter", app.filter)
     };
     
     let footer = Paragraph::new(footer_text)
