@@ -7,7 +7,7 @@ A lightning-fast fuzzy file browser built with Rust and Ratatui, featuring seaml
 - ⚡ **Native Performance** - Built with Rust for maximum speed
 - 🔍 **Smart Fuzzy Matching** - Intelligent scoring with consecutive character bonuses
 - 📁 **Directory Navigation** - Expand folders and browse your entire project
-- 🎯 **Vim-like Navigation** - hjkl movement, normal/insert modes, gg/G jumps
+- 🎯 **True Vim-like Navigation** - Normal/Insert modes, hjkl movement, gg/G jumps, i/ESC mode switching
 - 🖥️ **Dual Mode Operation** - Interactive TUI or JSON output for integrations
 - 🔌 **Neovim Integration** - Drop-in replacement with floating window UI
 - 🛡️ **UTF-8 Safe** - Handles international filenames gracefully
